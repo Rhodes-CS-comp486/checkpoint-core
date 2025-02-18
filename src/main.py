@@ -1,6 +1,6 @@
 from typing import Union, Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
@@ -10,14 +10,14 @@ fake_users_db = {
         "full_name": "John Doe",
         "email": "johndoe@example.com",
         "hashed_password": "fakehashedsecret",
-        "disabled": False,
+        "admin": False,
     },
     "alice": {
         "username": "alice",
         "full_name": "Alice Wonderson",
         "email": "alice@example.com",
         "hashed_password": "fakehashedsecret2",
-        "disabled": True,
+        "admin": True,
     },
 }
 
@@ -37,7 +37,7 @@ class User(BaseModel):
     username: str
     email: str | None = None
     full_name: str | None = None
-    disabled: bool | None = None
+    admin: bool | None = None
 
 def fake_hash_password(password: str):
     return "fakehashed" + password
@@ -51,9 +51,8 @@ def get_user(db, username: str):
         return UserInDB(**user_dict)
 
 def fake_decode_token(token):
-    return User(
-        username=token + "fakedecoded", email="john@example.com", full_name="John Doe"
-    )
+    user = get_user(fake_users_db, token)
+    return user
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     user = fake_decode_token(token)
@@ -67,8 +66,8 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
 
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
+    if current_user.admin:
+        raise HTTPException(status_code=400, detail="Administrator user")
     return current_user
 
 @app.post("/token")

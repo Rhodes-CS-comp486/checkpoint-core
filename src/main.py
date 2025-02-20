@@ -1,8 +1,10 @@
-from typing import Union, Annotated
+from typing import Annotated
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jwt.exceptions import InvalidTokenError
 
 fake_users_db = {
     "johndoe": {
@@ -21,13 +23,9 @@ fake_users_db = {
     },
 }
 
-app = FastAPI()
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-@app.get("/items/")
-async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
-    return {"token": token}
+class Token(BaseModel):
+    access_token: str
+    token_type:str
 
 class Item(BaseModel):
     name: str
@@ -39,11 +37,19 @@ class User(BaseModel):
     full_name: str | None = None
     admin: bool | None = None
 
-def fake_hash_password(password: str):
-    return "fakehashed" + password
-
 class UserInDB(User):
     hashed_password: str
+
+app = FastAPI()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+@app.get("/items/")
+async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
+    return {"token": token}
+
+def fake_hash_password(password: str):
+    return "fakehashed" + password
 
 def get_user(db, username: str):
     if username in db:

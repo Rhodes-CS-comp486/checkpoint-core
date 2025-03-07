@@ -1,11 +1,18 @@
 from typing import Annotated
 from datetime import datetime, timedelta, timezone
-
+from database import SessionLocal, User as DBUser, engine
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from jwt.exceptions import InvalidTokenError
+from sqlalchemy.orm import Session
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 from sqlalchemy import create_engine, insert, text
 
 PUBLIC_KEY = open('src/publickey.pem', 'r')
@@ -36,7 +43,7 @@ users = "Users"
 
 class Token(BaseModel):
     access_token: str
-    token_type:str
+    token_type: str
 
 class Item(BaseModel):
     name: str
@@ -147,19 +154,26 @@ async def login_for_access_token(
 
 @app.get("/users/me")
 async def read_users_me(
-    current_user: User,
-):
+    current_user: Annotated[User, Depends(get_current_active_user)]):
     return current_user
 
 @app.get("/")
 def read_root():
     return {"Public_Key": PUBLIC_KEY}
 
-@app.get("/users/me/items/")
-async def read_own_items(
-    current_user: Annotated[User, Depends(get_current_active_user)],
-):
-    return [{"item_id": "Foo", "owner": current_user.username}]
+@app.post("/users/")
+async def create_user(user: User, db: Session = Depends(get_db)):
+    db_user = DBUser(
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        hashed_password=fake_hash_password(user.hashed_password),
+        admin=user.admin,
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return {"user": db_user}
 
 @app.put("/items/{item_id}")
 def update_item(item_id: int, item: Item):

@@ -1,28 +1,25 @@
-from sqlalchemy import Column, Integer, String, Boolean, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import Field, Session, SQLModel, create_engine
 
-DATABASE_URL = "sqlite:///./test.db"
+f = open('db//password.txt', 'r')
+password = f.readline()
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_engine("postgresql+psycopg2://postgres:" + password + "@db:5432/Checkpoint-DB", echo=True)
+SessionLocal = engine.connect()
 
-Base = declarative_base()
+class User(SQLModel, table=True):
+    username = str | Field(primary_key=True, index=True)
+    email = str | Field(index=True, unique=True)
+    full_name = str | Field(nullable=True)
+    hashed_password = str
+    admin = bool | Field(default=False)
 
-class User(Base):
-    __tablename__ = "users"
+class Item(SQLModel, table=True):
+    id = int | Field(primary_key=True, index=True)
+    name = str | Field(index=True)
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=True)
-    full_name = Column(String, nullable=True)
-    hashed_password = Column(String)
-    admin = Column(Boolean, default=False)
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
 
-class Item(Base):
-    __tablename__ = "items"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-
-Base.metadata.create_all(bind=engine)
+def get_session():
+    with Session(engine) as session:
+        yield session

@@ -3,3 +3,5 @@ uvicorn
 python-multipart
 pyjwt[crypto]
 passlib
+sqlalchemy
+psycopg2-binary

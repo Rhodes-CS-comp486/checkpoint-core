@@ -1,8 +1,9 @@
 fastapi
 uvicorn
 python-multipart
-PyJWT[crypto]
+PyJWT
 passlib
 sqlalchemy
 sqlmodel
 psycopg2-binary
+pycryptodome

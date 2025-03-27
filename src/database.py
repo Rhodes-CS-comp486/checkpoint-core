@@ -1,28 +1,18 @@
-from sqlalchemy import Column, Integer, String, Boolean, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
 
-DATABASE_URL = "sqlite:///./test.db"
+# Define the path to your database file
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_URL = "sqlite:///./db/database.db"
 
-engine = create_engine(DATABASE_URL)
+# Create the engine to interact with the database
+# `check_same_thread=False` is required for SQLite to allow multiple threads
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+# Create a session factory for database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Define the base class for all ORM models
 Base = declarative_base()
-
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=True)
-    full_name = Column(String, nullable=True)
-    hashed_password = Column(String)
-    admin = Column(Boolean, default=False)
-
-class Item(Base):
-    __tablename__ = "items"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-
-Base.metadata.create_all(bind=engine)

@@ -20,7 +20,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-
 class TokenData(BaseModel):
     username: str | None = None
 
@@ -52,7 +51,7 @@ def authenticate_user(db, username: str, password: str):
     user = get_user(db, username)
     if not user:
         return False
-    if not verify_password(password, user.hashed_password):
+    if not verify_password(password, user.password):
         return False
     return user
 
@@ -125,7 +124,7 @@ async def new_user(user: User, session: SessionDep):
         username=user.username,
         email=user.email,
         full_name=user.full_name,
-        hashed_password=(user.hashed_password),
+        password=(get_password_hash(user.password)), #store password as a hash
         admin=user.admin,
     )
     session.add(user)

@@ -8,6 +8,7 @@ engine = create_engine("postgresql://postgres:postgres@db:5432/checkpoint-db", e
 SessionLocal = engine.connect()
 
 class User(SQLModel, table=True):
+    __tablename__ = "users"
     username: str = Field(primary_key=True, index=True)
     email: str = Field(index=True, unique=True)
     full_name: str 
@@ -17,6 +18,10 @@ class User(SQLModel, table=True):
 class Item(SQLModel, table=True):
     id: int = Field(primary_key=True, index=True)
     name: str = Field(index=True)
+    description: str = Field()
+    model: str = Field()
+    availability: bool = Field() # available = true, ow = false
+    status: str = Field()
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

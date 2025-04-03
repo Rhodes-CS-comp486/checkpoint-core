@@ -1,4 +1,4 @@
-from sqlmodel import Field, Session, SQLModel, create_engine
+from sqlmodel import Field, Session, SQLModel, create_engine # type: ignore
 from datetime import datetime, timedelta
 
 f = open('db//password.txt', 'r')

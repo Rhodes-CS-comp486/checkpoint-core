@@ -1,20 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, status, Query
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from passlib.context import CryptContext
-from sqlmodel import Session, select
-import jwt 
-from jwt.exceptions import InvalidTokenError
+from fastapi import Depends, FastAPI, HTTPException, status, Query #type: ignore
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer #type: ignore
+from passlib.context import CryptContext #type: ignore
+from sqlmodel import Session, select #type: ignore
+import jwt  #type: ignore
+from jwt.exceptions import InvalidTokenError #type: ignore
 from src import database as db
 from src.database import User, Item, Borrow, engine#, seed_sample
-from pydantic import BaseModel
-
-#TODO: 
-#get item
-#update/add item
-#borrow item
-#look into notification stuff
+from pydantic import BaseModel #type: ignore
 
 SECRET_KEY = "secretkey"
 ALGORITHM = "HS256"
@@ -106,7 +100,7 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": user.username})
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, token_type="bearer", user_id=user.user_id)
 
 @app.get("/users/me")
 async def read_users_me(
@@ -124,7 +118,7 @@ async def list_users(session: SessionDep, # type: ignore
 
 @app.get("/")
 def read_root():
-    return {"Public_Key": PUBLIC_KEY} # type: ignore
+    return {"checkpoint-core"} 
 
 @app.put("/users/")
 async def new_user(user: User, session: SessionDep): # type: ignore
@@ -134,6 +128,7 @@ async def new_user(user: User, session: SessionDep): # type: ignore
         username=user.username,
         email=user.email,
         full_name=user.full_name,
+        user_id=user.user_id,
         hashed_password=get_password_hash(user.hashed_password),
         admin=user.admin,
     )
@@ -224,10 +219,21 @@ async def show_borrows(
 ):
     user = current_user
     query = select(Borrow)
-    if user.admin == False:
-        query = query.where(Borrow.username == user.username)
+    query = query.where(Borrow.username == user.username)
     results = session.exec(query).all()
     return results
+
+@app.get("/users/all/borrows")
+async def show_borrow(
+    session: SessionDep, # type: ignore
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    if current_user.admin == True:
+        query = select(Borrow)
+        results = session.exec(query.all())
+        return results
+    else:
+        raise HTTPException(status_code=403, detail="Requires elevated permissions")
 
 @app.put("/items/{item_id}/return")
 async def return_item(

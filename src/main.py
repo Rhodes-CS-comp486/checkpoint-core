@@ -7,11 +7,15 @@ from sqlmodel import Session, select
 import jwt 
 from jwt.exceptions import InvalidTokenError
 from src import database as db
-from src.database import User, Item, engine
+from src.database import User, Item, Borrow, engine#, seed_sample
 from pydantic import BaseModel
 
+#TODO: 
+#get item
+#update/add item
+#borrow item
+#look into notification stuff
 
-PUBLIC_KEY = "notused"
 SECRET_KEY = "secretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -29,7 +33,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-
 async def lifespan(app: FastAPI):
     db.create_db_and_tables()
     with Session(engine) as session:
@@ -37,7 +40,7 @@ async def lifespan(app: FastAPI):
     yield
 app = FastAPI(lifespan=lifespan)
 
-async def get_user(username: str, session: SessionDep) -> User:
+async def get_user(username: str, session: SessionDep) -> User: # type: ignore
     user = session.get(User, username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -67,7 +70,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: SessionDep):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: SessionDep): # type: ignore
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -88,55 +91,12 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], sessio
 
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.admin:
-        raise HTTPException(status_code=400, detail="Administrator user")
     return current_user
-
-
-##### mock sample data for testing
-
-
-def seed_sample(session):
-    existing_users = session.exec(select(User)).all()
-    if existing_users:
-        return
-
-    sample_users = [
-        User(username="dzhanbyrshy", email="dz@example.com", full_name="Dimash Zhanbyrshy",
-             hashed_password=get_password_hash("dz123"), admin=True),
-        User(username="jhall", email="jh@example.com", full_name="Jules Hall",
-             hashed_password=get_password_hash("jh123"), admin=False),
-        User(username="egantulga", email="eg@example.com", full_name="EK Gantulga",
-             hashed_password=get_password_hash("eg123"), admin=False)
-    ]
-
-    for user in sample_users:
-        session.add(user)
-
-    existing_items = session.exec(select(Item)).all()
-    if existing_items:
-        return  # Already seeded
-
-    sample_items = [
-        Item(name="Camera", description="DSLR camera", model="Canon EOS 90D",
-            availability=True, status="available"),
-        Item(name="Tripod", description="Adjustable tripod stand", model="Manfrotto Compact",
-            availability=False, status="borrowed"),
-        Item(name="Whiteboard", description="Magnetic whiteboard", model="Quartet",
-            availability=True, status="available"),
-        Item(name="Microscope", description="Science lab microscope", model="AmScope B120C",
-            availability=False, status="reserved"),
-    ]
-
-    for item in sample_items:
-        session.add(item)
-
-    session.commit()
 
 @app.post("/token")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    session: SessionDep
+    session: SessionDep # type: ignore
 ) -> Token:
     user = await authenticate_user(session, form_data.username, form_data.password)
     if not user:
@@ -154,15 +114,22 @@ async def read_users_me(
     return current_user
 
 @app.get("/users/all")
-async def list_users(session: SessionDep):
-    return session.exec(select(User)).all()
+async def list_users(session: SessionDep, # type: ignore
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    if current_user.admin == True:
+        return session.exec(select(User)).all()
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden.")
 
 @app.get("/")
 def read_root():
-    return {"Public_Key": PUBLIC_KEY}
+    return {"Public_Key": PUBLIC_KEY} # type: ignore
 
 @app.put("/users/")
-async def new_user(user: User, session: SessionDep):
+async def new_user(user: User, session: SessionDep): # type: ignore
+    if (get_user == user.username):
+        raise HTTPException(status_code=403, detail="This username is in use. Please try another.")
     db_user = User(
         username=user.username,
         email=user.email,
@@ -175,20 +142,32 @@ async def new_user(user: User, session: SessionDep):
     session.refresh(db_user)
     return {"Account Created.\nUser": db_user}
 
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item: Item):
-    return {"item_name": item.name, "item_id": item_id}
-
-@app.get("/items/")
-async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
-    return {"token": token}
+@app.put("/items/add/{item_id}") 
+def update_item(session: SessionDep, # type: ignore
+                item: Item,
+                current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    if current_user.admin == True:
+        item_found = session.get(Item, item.id)
+        if item_found:
+            return{"error: item_id %d already exists. Please use item serial number as unique identifier", item.id}
+        else:            
+            session.add(item)
+            session.commit()
+            session.refresh(item)
+            verify = session.get(Item, item.id)
+            if verify:
+                return{"item added successfully: ", verify}
+            else: 
+                raise HTTPException(status_code=400, detail="Bad request, unable to update database")
+    else:
+        raise HTTPException(status_code=401, detail="You must be logged in as an administrator to update the catalog")
 
 @app.get("/items/filter")
 async def filter_items(
-    session: SessionDep,
+    session: SessionDep, # type: ignore
     availability: bool | None = Query(default=None),
-    category: str | None = Query(default=None),
-    status: str | None = Query(default=None)
+    category: str | None = Query(default=None)
 ):
     query = select(Item)
 
@@ -196,7 +175,119 @@ async def filter_items(
         query = query.where(Item.availability == availability)
     if category:
         query = query.where(Item.model == category)
-    if status:
-        query = query.where(Item.status == status)
     results = session.exec(query).all()
     return results
+
+@app.get("/items/{item_id}")
+async def get_item(
+    session: SessionDep, # type: ignore
+    item_id: int
+):
+    item = session.exec(select(Item).where(Item.id == item_id)).all()
+    if item == None:
+        raise HTTPException(status_code=404, detail="Item {item_id} does not exist.")
+    else:
+        return item
+    
+@app.put("/items/{item_id}/borrow")
+async def borrow_item(
+    session: SessionDep, # type: ignore
+    item_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    user = current_user
+    item = session.get(Item, item_id)
+    if item == None:
+        raise HTTPException(status_code=404, detail="Unknown item id")
+    if item.availability == False:
+        raise HTTPException(status_code=403, detail="Forbidden operation, item is already borrowed.")
+    item.availability = False
+    id = item_id + datetime.now().timestamp() #make a borrow id based on item borrowed and current time
+    new_borrow = Borrow(
+        borrow_id = id, 
+        item_id = item_id,
+        username = user.username,
+        date_borrowed = datetime.today(),
+        date_returned = None,
+        date_due = datetime.today() + item.borrow_period_days,
+        active = True,
+    )
+    session.add(new_borrow)
+    session.commit()
+    session.refresh(item)
+    return{"Borrow confirmed. Borrow ID: %s", id}
+
+@app.get("/user/borrows")
+async def show_borrows(
+    session: SessionDep, # type: ignore
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    user = current_user
+    query = select(Borrow)
+    if user.admin == False:
+        query = query.where(Borrow.username == user.username)
+    results = session.exec(query).all()
+    return results
+
+@app.put("/items/{item_id}/return")
+async def return_item(
+    session: SessionDep, # type: ignore
+    item_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    user = current_user
+    borrow = session.exec(select(Borrow).where(
+        Borrow.item_id == item_id, 
+        Borrow.active == True, 
+        Borrow.username == user.username)).first()
+    if borrow == None:
+        raise HTTPException(status_code=404, detail="Item is not found")
+    item = session.get(Item, item_id)
+    item.availability = True
+    borrow.active = False
+    borrow.date_returned = datetime.today()
+    session.commit()
+    session.refresh(item)
+    return{"Return confirmed."}
+
+
+
+##### mock sample data for testing
+
+
+def seed_sample(session):
+    existing_users = session.exec(select(User)).all()
+    if existing_users:
+        return
+
+    sample_users = [
+        User(username="dzhanbyrshy", email="dz@example.com", full_name="Dimash Zhanbyrshy",
+             hashed_password=get_password_hash("dz123"), user_id=0, admin=True),
+        User(username="jhall", email="jh@example.com", full_name="Jules Hall",
+             hashed_password=get_password_hash("jh123"), user_id=1, admin=False),
+        User(username="egantulga", email="eg@example.com", full_name="EK Gantulga",
+             hashed_password=get_password_hash("eg123"), user_id=2, admin=False)
+    ]
+
+    for user in sample_users:
+        session.add(user)
+
+    existing_items = session.exec(select(Item)).all()
+    if existing_items:
+        return  # Already seeded
+
+    sample_items = [
+        Item(name="Camera", description="DSLR camera", model="Canon EOS 90D",
+            availability=True, borrow_period_days=timedelta(days=10), status="available"),
+        Item(name="Tripod", description="Adjustable tripod stand", model="Manfrotto Compact",
+            availability=False, borrow_period_days=timedelta(days=14), status="borrowed"),
+        Item(name="Whiteboard", description="Magnetic whiteboard", model="Quartet",
+            availability=True, borrow_period_days=timedelta(days=7), status="available"),
+        Item(name="Microscope", description="Science lab microscope", model="AmScope B120C",
+            availability=False, borrow_period_days=timedelta(days=30), status="reserved"),
+    ]
+
+    for item in sample_items:
+        session.add(item)
+
+    session.commit()

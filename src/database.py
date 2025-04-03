@@ -19,7 +19,7 @@ class User(SQLModel, table=True):
 
 class Item(SQLModel, table=True):
     __tablename__ = "Item"
-    id: int = Field(primary_key=True, index=True, unique=True) #this should ideally be a serial number (unique)
+    id: str = Field(primary_key=True, index=True, unique=True) #this should ideally be a serial number (unique)
     name: str = Field(index=True)
     description: str = Field()
     model: str = Field()

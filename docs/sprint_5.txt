@@ -1,0 +1,21 @@
+Sprint Goal: 
+a.  lots of little QoL updates/bug fixes. We will finish the last few AC for US5 and US7 and implement 8 & 9
+and securely log in. 
+    2.  Team Capacity: 
+        a.  Dimash - 15 hours 
+            i.  Base capacity is 20 hours 
+            ii.  Have homework and a midterm exam closer to the end of this 
+        sprint (need more time studying). Capacity reduced by 5 hours. 
+        b.  Enkhee - 16 hours 
+            i.  Base Capacity: 20 hours 
+            ii.  Have in-class and take-home exams during the sprint. Capacity 
+        reduced by 4 hours. 
+        c.  Jules - 16 hours 
+            i.  Base Capacity: 16 hours 
+    3.  Planned Work: 
+        a.  US8 - notification (admin) (checkout, return)
+        b.  US9 - notification (user)
+        c.  add a location field to item object
+        d.  report damage @app.post (update status)
+        e.  US5 - serve admin a list of all borrows
+        f.  US7 - remove equipment from catalog

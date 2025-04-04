@@ -26,6 +26,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+#Security
+*.pem
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -128,7 +131,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -139,6 +141,10 @@ venv.bak/
 # Spyder project settings
 .spyderproject
 .spyproject
+
+#idea projet settings
+.idea
+.vscode
 
 # Rope project settings
 .ropeproject

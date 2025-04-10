@@ -100,7 +100,7 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": user.username})
-    return Token(access_token=access_token, token_type="bearer", user_id=user.user_id)
+    return Token(access_token=access_token, token_type="bearer")
 
 @app.get("/users/me")
 async def read_users_me(
@@ -145,7 +145,7 @@ def update_item(session: SessionDep, # type: ignore
     if current_user.admin == True:
         item_found = session.get(Item, item.id)
         if item_found:
-            return{"error: item_id %d already exists. Please use item serial number as unique identifier", item.id}
+            return{"error: item_id %s already exists. Please use item serial number as unique identifier", item.id}
         else:            
             session.add(item)
             session.commit()
@@ -176,7 +176,7 @@ async def filter_items(
 @app.get("/items/{item_id}")
 async def get_item(
     session: SessionDep, # type: ignore
-    item_id: int
+    item_id: str
 ):
     item = session.exec(select(Item).where(Item.id == item_id)).all()
     if item == None:
@@ -187,7 +187,7 @@ async def get_item(
 @app.put("/items/{item_id}/borrow")
 async def borrow_item(
     session: SessionDep, # type: ignore
-    item_id: int,
+    item_id: str,
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     user = current_user
@@ -238,7 +238,7 @@ async def show_borrow(
 @app.put("/items/{item_id}/return")
 async def return_item(
     session: SessionDep, # type: ignore
-    item_id: int,
+    item_id: str,
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     user = current_user
@@ -283,13 +283,13 @@ def seed_sample(session):
         return  # Already seeded
 
     sample_items = [
-        Item(name="Camera", description="DSLR camera", model="Canon EOS 90D",
+        Item(name="Camera", id="0", description="DSLR camera", model="Canon EOS 90D",
             availability=True, borrow_period_days=timedelta(days=10), status="available"),
-        Item(name="Tripod", description="Adjustable tripod stand", model="Manfrotto Compact",
+        Item(name="Tripod",  id="1", description="Adjustable tripod stand", model="Manfrotto Compact",
             availability=False, borrow_period_days=timedelta(days=14), status="borrowed"),
-        Item(name="Whiteboard", description="Magnetic whiteboard", model="Quartet",
+        Item(name="Whiteboard",  id="2", description="Magnetic whiteboard", model="Quartet",
             availability=True, borrow_period_days=timedelta(days=7), status="available"),
-        Item(name="Microscope", description="Science lab microscope", model="AmScope B120C",
+        Item(name="Microscope",  id="3", description="Science lab microscope", model="AmScope B120C",
             availability=False, borrow_period_days=timedelta(days=30), status="reserved"),
     ]
 

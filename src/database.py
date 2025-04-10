@@ -23,6 +23,7 @@ class Item(SQLModel, table=True):
     name: str = Field(index=True)
     description: str = Field()
     model: str = Field()
+    location: str = Field()
     availability: bool = Field() # available = true, ow = false
     borrow_period_days: timedelta
     status: str = Field() 
@@ -31,7 +32,7 @@ class Borrow(SQLModel, table=True):
     __tablename__ = "Borrow"
     class Config: arbitrary_types_allowed=True
     borrow_id: int = Field(primary_key=True)
-    item_id: int = Field(index=True, foreign_key="Item.id")
+    item_id: str = Field(index=True, foreign_key="Item.id")
     username: str = Field(index=True, foreign_key="User.username")
     date_borrowed: datetime = Field()
     date_returned: datetime | None = Field(default=None)

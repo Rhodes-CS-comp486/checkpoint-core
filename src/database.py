@@ -23,7 +23,7 @@ class Item(SQLModel, table=True):
     name: str = Field(index=True)
     description: str = Field()
     model: str = Field()
-    location: str = Field()
+    location: str | None = Field(default=None)
     availability: bool = Field() # available = true, ow = false
     borrow_period_days: timedelta
     status: str = Field() 

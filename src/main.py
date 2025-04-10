@@ -17,6 +17,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_id: str
 
 class TokenData(BaseModel):
     username: str | None = None
@@ -100,7 +101,7 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": user.username})
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, token_type="bearer", user_id=user.user_id)
 
 @app.get("/users/me")
 async def read_users_me(

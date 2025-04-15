@@ -88,6 +88,20 @@ async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
 
+async def verify_admin(user: User): #type: ignore
+    if user.admin == True:
+        return True
+    if user.admin == False:
+        raise HTTPException(status_code=403, detail="This action requires elevated permissions. Ask an Administrator for help.")
+    
+async def check_item(item_id: str,
+        session: SessionDep): #type: ignore
+    item = session.get(Item, item_id)
+    if item:
+        return item
+    elif item == None:
+        raise HTTPException(status_code=404, detail="Item not found. Check Item ID and try again")
+
 @app.post("/token")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -112,10 +126,8 @@ async def read_users_me(
 async def list_users(session: SessionDep, # type: ignore
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
-    if current_user.admin == True:
+    if await verify_admin(current_user):
         return session.exec(select(User)).all()
-    else:
-        raise HTTPException(status_code=403, detail="Forbidden.")
 
 @app.get("/")
 def read_root():
@@ -136,14 +148,29 @@ async def new_user(user: User, session: SessionDep): # type: ignore
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    return {"Account Created.\nUser": db_user}
+    return {"Account Created.": db_user}
+
+@app.put("/users/{username}/elevate")
+async def elevate_user(username: str, 
+                       current_user: Annotated[User, Depends(get_current_active_user)], 
+                       session: SessionDep): #type:ignore
+    if await verify_admin(current_user):
+        new_admin = session.get(User, username)
+        if new_admin.admin == True:
+            raise HTTPException(status_code=403, detail="User is already administrator.")
+        else: 
+            new_admin.admin = True
+            session.commit()
+            session.refresh(new_admin)
+            return new_admin
+
 
 @app.put("/items/add/{item_id}") 
-def update_item(session: SessionDep, # type: ignore
+async def add_item(session: SessionDep, # type: ignore
                 item: Item,
                 current_user: Annotated[User, Depends(get_current_active_user)]
 ):
-    if current_user.admin == True:
+    if verify_admin(current_user):
         item_found = session.get(Item, item.id)
         if item_found:
             return{"error: item_id %s already exists. Please use item serial number as unique identifier", item.id}
@@ -153,11 +180,26 @@ def update_item(session: SessionDep, # type: ignore
             session.refresh(item)
             verify = session.get(Item, item.id)
             if verify:
-                return{"item added successfully: ", verify}
+                return verify
             else: 
                 raise HTTPException(status_code=400, detail="Bad request, unable to update database")
-    else:
-        raise HTTPException(status_code=401, detail="You must be logged in as an administrator to update the catalog")
+            
+@app.delete("/items/delete/{item_id}")
+async def delete_item(session: SessionDep, #type: ifnore
+                      item_id: str,
+                      current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    if await verify_admin(current_user):
+        item = await check_item(item_id, session)
+        if item:
+            session.delete(item)
+            session.commit()
+            session.refresh
+            verify = session.get(Item, item_id)
+            if verify: 
+                raise HTTPException(status_code=400, detail="Something went wrong, could not remove item from database")
+            else: 
+                return("Item was deleted successfully.")
 
 @app.get("/items/filter")
 async def filter_items(
@@ -179,11 +221,8 @@ async def get_item(
     session: SessionDep, # type: ignore
     item_id: str
 ):
-    item = session.exec(select(Item).where(Item.id == item_id)).all()
-    if item == None:
-        raise HTTPException(status_code=404, detail="Item {item_id} does not exist.")
-    else:
-        return item
+    item = await check_item(item_id, session)
+    return item
     
 @app.put("/items/{item_id}/borrow")
 async def borrow_item(
@@ -192,13 +231,11 @@ async def borrow_item(
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     user = current_user
-    item = session.get(Item, item_id)
-    if item == None:
-        raise HTTPException(status_code=404, detail="Unknown item id")
+    item = await check_item(item_id, session)
     if item.availability == False:
         raise HTTPException(status_code=403, detail="Forbidden operation, item is already borrowed.")
     item.availability = False
-    id = item_id + datetime.now().timestamp() #make a borrow id based on item borrowed and current time
+    id = item_id + str(datetime.now().timestamp()) #make a borrow id based on item borrowed and current time
     new_borrow = Borrow(
         borrow_id = id, 
         item_id = item_id,
@@ -229,12 +266,10 @@ async def show_borrow(
     session: SessionDep, # type: ignore
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
-    if current_user.admin == True:
+    if await verify_admin(current_user):
         query = select(Borrow)
-        results = session.exec(query.all())
+        results = session.exec(query).all()
         return results
-    else:
-        raise HTTPException(status_code=403, detail="Requires elevated permissions")
 
 @app.put("/items/{item_id}/return")
 async def return_item(
@@ -257,6 +292,20 @@ async def return_item(
     session.refresh(item)
     return{"Return confirmed."}
 
+@app.put("/items/{item_id}/damage-report")
+async def report_damage(
+    session: SessionDep, #type: ignore
+    item_id: str,
+    damage: str, 
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    user = current_user
+    if await verify_admin(user):
+        item = await check_item(item_id, session)
+        item.damage = damage
+        session.commit()
+        session.refresh(item)
+        return {"Damage logged."}
 
 
 ##### mock sample data for testing

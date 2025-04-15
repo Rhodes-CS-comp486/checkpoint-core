@@ -15,7 +15,7 @@ and securely log in.
     3.  Planned Work: 
         a.  US8 - notification (admin) (checkout, return)
         b.  US9 - notification (user)
-        c.  add a location field to item object
-        d.  report damage @app.post (update status)
-        e.  US5 - serve admin a list of all borrows
-        f.  US7 - remove equipment from catalog
+        c.  ~~add a location field to item object~~
+        d.  ~~report damage @app.post (update status)~~
+        e.  ~~US5 - serve admin a list of all borrows~~
+        f.  ~~US7 - remove equipment from catalog~~

@@ -8,11 +8,17 @@ import jwt  #type: ignore
 from jwt.exceptions import InvalidTokenError #type: ignore
 from src import database as db
 from src.database import User, Item, Borrow, engine#, seed_sample
-from pydantic import BaseModel #type: ignore
+from pydantic import BaseModel, EmailStr #type: ignore
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 
 SECRET_KEY = "secretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+class EmailSchema(BaseModel):
+    email: list[EmailStr]
+    subject: str
+    body: str
 
 class Token(BaseModel):
     access_token: str
@@ -27,6 +33,19 @@ SessionDep = Annotated[Session, Depends(db.get_session)]
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+conf = ConnectionConfig(
+    MAIL_USERNAME="checkpoint.notify@gmail.com",
+    MAIL_PASSWORD="nxtz mfnx zdzi vayc",
+    MAIL_FROM="checkpoint.notify@gmail.com",
+    MAIL_PORT=587,
+    MAIL_SERVER="smtp.gmail.com",
+    MAIL_FROM_NAME="CheckPoint Notifier",
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS = False,
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True
+)
 
 async def lifespan(app: FastAPI):
     db.create_db_and_tables()
@@ -101,6 +120,26 @@ async def check_item(item_id: str,
         return item
     elif item == None:
         raise HTTPException(status_code=404, detail="Item not found. Check Item ID and try again")
+
+async def send_borrow_email(recipient: EmailStr, item_name: str, due_date: datetime):
+    message = MessageSchema(
+        subject="Item Borrowed Confirmation",
+        recipients=[recipient],
+        body=f"""Hello,
+
+        You have successfully borrowed the item: {item_name}.
+
+        📅 Due Date: {due_date.strftime('%Y-%m-%d %H:%M:%S')}
+
+        Please make sure to return the item by the due date to avoid issues.
+
+        Thank you,
+        Checkpoint Equipment Services
+        """,
+        subtype="plain"
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)
 
 @app.post("/token")
 async def login_for_access_token(
@@ -236,18 +275,22 @@ async def borrow_item(
         raise HTTPException(status_code=403, detail="Forbidden operation, item is already borrowed.")
     item.availability = False
     id = item_id + str(datetime.now().timestamp()) #make a borrow id based on item borrowed and current time
+
+    date_due = datetime.today() + item.borrow_period_days
+
     new_borrow = Borrow(
         borrow_id = id, 
         item_id = item_id,
         username = user.username,
         date_borrowed = datetime.today(),
         date_returned = None,
-        date_due = datetime.today() + item.borrow_period_days,
+        date_due = date_due,
         active = True,
     )
     session.add(new_borrow)
     session.commit()
     session.refresh(item)
+    await send_borrow_email(current_user.email, item.name, date_due)
     return{"Borrow confirmed. Borrow ID: %s", id}
 
 @app.get("/user/borrows")
@@ -308,6 +351,9 @@ async def report_damage(
         return {"Damage logged."}
 
 
+
+
+
 ##### mock sample data for testing
 
 
@@ -317,7 +363,7 @@ def seed_sample(session):
         return
 
     sample_users = [
-        User(username="dzhanbyrshy", email="dz@example.com", full_name="Dimash Zhanbyrshy",
+        User(username="dzhanbyrshy", email="zhadi-25@rhodes.edu", full_name="Dimash Zhanbyrshy",
              hashed_password=get_password_hash("dz123"), user_id=0, admin=True),
         User(username="jhall", email="jh@example.com", full_name="Jules Hall",
              hashed_password=get_password_hash("jh123"), user_id=1, admin=False),

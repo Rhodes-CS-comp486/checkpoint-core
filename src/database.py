@@ -31,7 +31,7 @@ class Item(SQLModel, table=True):
 class Borrow(SQLModel, table=True):
     __tablename__ = "Borrow"
     class Config: arbitrary_types_allowed=True
-    borrow_id: int = Field(primary_key=True)
+    borrow_id: str = Field(primary_key=True)
     item_id: str = Field(index=True, foreign_key="Item.id")
     username: str = Field(index=True, foreign_key="User.username")
     date_borrowed: datetime = Field()

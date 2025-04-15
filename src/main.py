@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, status, Query #type: ignore
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer #type: ignore
 from passlib.context import CryptContext #type: ignore
-from sqlmodel import Session, select #type: ignore
+from sqlmodel import Session, delete, update, select #type: ignore
 import jwt  #type: ignore
 from jwt.exceptions import InvalidTokenError #type: ignore
 from src import database as db
@@ -153,11 +153,24 @@ def update_item(session: SessionDep, # type: ignore
             session.refresh(item)
             verify = session.get(Item, item.id)
             if verify:
-                return{"item added successfully: ", verify}
+                return {"message": f"item {verify.id} added successfully"}
             else: 
                 raise HTTPException(status_code=400, detail="Bad request, unable to update database")
     else:
         raise HTTPException(status_code=401, detail="You must be logged in as an administrator to update the catalog")
+
+@app.delete("/items/{item_id}")
+async def delete_item(item_id: str, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    if not current_user.admin:
+        raise HTTPException(status_code=403, detail="Only admins can delete items.")
+    item = session.get(Item, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found.")
+
+    session.exec(delete(Borrow).where(Borrow.item_id == item_id))
+    session.delete(item)
+    session.commit()
+    return {"message": f"Item {item_id} deleted successfully"}
 
 @app.get("/items/filter")
 async def filter_items(
@@ -198,7 +211,7 @@ async def borrow_item(
     if item.availability == False:
         raise HTTPException(status_code=403, detail="Forbidden operation, item is already borrowed.")
     item.availability = False
-    id = item_id + datetime.now().timestamp() #make a borrow id based on item borrowed and current time
+    id = item_id + "_" + str(datetime.now().timestamp()) #make a borrow id based on item borrowed and current time
     new_borrow = Borrow(
         borrow_id = id, 
         item_id = item_id,
@@ -231,7 +244,7 @@ async def show_borrow(
 ):
     if current_user.admin == True:
         query = select(Borrow)
-        results = session.exec(query.all())
+        results = session.exec(query).all()
         return results
     else:
         raise HTTPException(status_code=403, detail="Requires elevated permissions")
@@ -247,9 +260,10 @@ async def return_item(
         Borrow.item_id == item_id, 
         Borrow.active == True, 
         Borrow.username == user.username)).first()
-    if borrow == None:
+    if not borrow:
         raise HTTPException(status_code=404, detail="Item is not found")
     item = session.get(Item, item_id)
+    item.status = "pending"
     item.availability = True
     borrow.active = False
     borrow.date_returned = datetime.today()

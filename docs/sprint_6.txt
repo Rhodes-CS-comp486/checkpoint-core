@@ -1,0 +1,18 @@
+Sprint Goal: 
+a.  lots of little QoL updates/bug fixes. We will finish the last few AC for US5 and US7 and implement 8 & 9
+and securely log in. 
+    2.  Team Capacity: 
+        a.  Dimash - 12 hours 
+            i.  Base capacity is 20 hours 
+            ii.  exams 
+        sprint (need more time studying). Capacity reduced by 5 hours. 
+        b.  Enkhee - 15 hours 
+            i.  Base Capacity: 20 hours 
+            ii.  exam and project 
+        reduced by 4 hours. 
+        c.  Jules - 16 hours 
+            i.  Base Capacity: 16 hours 
+    3.  Planned Work: 
+        a.  filter borrows by active vs history
+        b.  notifcation for admins
+        c.  add field for "pending review"

@@ -157,7 +157,7 @@ async def elevate_user(username: str,
     if await verify_admin(current_user):
         new_admin = session.get(User, username)
         if new_admin.admin == True:
-            raise HTTPException(status_code=403, detail="User is already administrator.")
+            raise HTTPException(status_code=403, detail="User is already an administrator.")
         else: 
             new_admin.admin = True
             session.commit()
@@ -185,16 +185,20 @@ async def add_item(session: SessionDep, # type: ignore
                 raise HTTPException(status_code=400, detail="Bad request, unable to update database")
             
 @app.delete("/items/delete/{item_id}")
-async def delete_item(session: SessionDep, #type: ifnore
+async def delete_item(session: SessionDep, #type: ignore
                       item_id: str,
                       current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     if await verify_admin(current_user):
         item = await check_item(item_id, session)
+
         if item:
+            #query = select(Item)
+            #query = query.where(Borrow.item_id == item.id)
+            #results = session.exec(query).all()
+            #session.delete(results)
             session.delete(item)
             session.commit()
-            session.refresh
             verify = session.get(Item, item_id)
             if verify: 
                 raise HTTPException(status_code=400, detail="Something went wrong, could not remove item from database")

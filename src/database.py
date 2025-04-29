@@ -33,8 +33,8 @@ class Borrow(SQLModel, table=True):
     __tablename__ = "Borrow"
     class Config: arbitrary_types_allowed=True
     borrow_id: str = Field(primary_key=True)
-    item_id: str = Field(index=True, foreign_key="Item.id")
-    username: str = Field(index=True, foreign_key="User.username")
+    item_id: str = Field(index=True, foreign_key="Item.id", ondelete="CASCADE")
+    username: str = Field(index=True, foreign_key="User.username", ondelete="CASCADE")
     date_borrowed: datetime = Field()
     date_returned: datetime | None = Field(default=None)
     date_due: datetime = Field()

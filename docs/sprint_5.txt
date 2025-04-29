@@ -1,5 +1,5 @@
 Sprint Goal: 
-a.  lots of little QoL updates/bug fixes. We will finish the last few AC for US5 and US7 and implement 8 & 9
+a.  We will finish US 8 (admin notification) and refine admin permissions for viewing borrows. 
 and securely log in. 
     2.  Team Capacity: 
         a.  Dimash - 15 hours 
@@ -15,7 +15,4 @@ and securely log in.
     3.  Planned Work: 
         a.  US8 - notification (admin) (checkout, return)
         b.  US9 - notification (user)
-        c.  ~~add a location field to item object~~
-        d.  ~~report damage @app.post (update status)~~
-        e.  ~~US5 - serve admin a list of all borrows~~
-        f.  ~~US7 - remove equipment from catalog~~
+        c.  dial in delete item (bug fix)

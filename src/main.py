@@ -140,6 +140,25 @@ async def send_borrow_email(recipient: EmailStr, item_name: str, due_date: datet
     )
     fm = FastMail(conf)
     await fm.send_message(message)
+async def send_admin_notification(admin_email: EmailStr, borrower_username: str, item_name: str, due_date: datetime):
+    message = MessageSchema(
+        subject="Item Borrowed Notification",
+        recipients=[admin_email],
+        body=f"""Hello Admin,
+
+        User '{borrower_username}' has borrowed the item: {item_name}.
+
+        📅 Due Date: {due_date.strftime('%Y-%m-%d %H:%M:%S')}
+
+        Please monitor the borrowed item accordingly.
+
+        Thank you,
+        Checkpoint Equipment Services
+        """,
+        subtype="plain"
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)
 
 @app.post("/token")
 async def login_for_access_token(
@@ -224,20 +243,16 @@ async def add_item(session: SessionDep, # type: ignore
                 raise HTTPException(status_code=400, detail="Bad request, unable to update database")
             
 @app.delete("/items/delete/{item_id}")
-async def delete_item(session: SessionDep, #type: ignore
+async def delete_item(session: SessionDep, #type: ifnore
                       item_id: str,
                       current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     if await verify_admin(current_user):
         item = await check_item(item_id, session)
-
         if item:
-            #query = select(Item)
-            #query = query.where(Borrow.item_id == item.id)
-            #results = session.exec(query).all()
-            #session.delete(results)
             session.delete(item)
             session.commit()
+            session.refresh
             verify = session.get(Item, item_id)
             if verify: 
                 raise HTTPException(status_code=400, detail="Something went wrong, could not remove item from database")
@@ -295,7 +310,12 @@ async def borrow_item(
     session.commit()
     session.refresh(item)
     await send_borrow_email(current_user.email, item.name, date_due)
-    return{"Borrow confirmed. Borrow ID: %s", id}
+    admin_users = session.exec(select(User).where(User.admin == True)).all()
+    for admin in admin_users:
+        if admin.email != current_user.email:  # Don't send twice if borrower is admin
+            await send_admin_notification(admin.email, current_user.username, item.name, date_due)
+
+    return {"Borrow confirmed. Borrow ID: %s", id}
 
 @app.get("/user/borrows")
 async def show_borrows(
@@ -355,6 +375,32 @@ async def report_damage(
         return {"Damage logged."}
 
 
+@app.put("/users/{username}/demote")
+async def demote_user(
+        username: str,
+        session: SessionDep,
+        current_user: Annotated[User, Depends(get_current_active_user)]
+    ):
+    # Fetch the user you want to demote
+    user_to_demote = session.get(User, username)
+    if not user_to_demote:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # If current user is admin OR user is demoting themselves
+    if current_user.admin or (current_user.username == username):
+        if not user_to_demote.admin:
+            raise HTTPException(status_code=400, detail="User is already not an admin")
+
+        user_to_demote.admin = False
+        session.commit()
+        session.refresh(user_to_demote)
+        return {"message": f"User '{username}' has been demoted from admin."}
+
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to demote this user. Only admins or the user themselves can perform this action."
+            )
 
 
 
@@ -371,7 +417,7 @@ def seed_sample(session):
              hashed_password=get_password_hash("dz123"), user_id=0, admin=True),
         User(username="jhall", email="jh@example.com", full_name="Jules Hall",
              hashed_password=get_password_hash("jh123"), user_id=1, admin=False),
-        User(username="egantulga", email="eg@example.com", full_name="EK Gantulga",
+        User(username="egantulga", email="ganen-25@rhodes.edu", full_name="EK Gantulga",
              hashed_password=get_password_hash("eg123"), user_id=2, admin=True)
     ]
 
@@ -399,29 +445,3 @@ def seed_sample(session):
     session.commit()
 
 
-@app.put("/users/{username}/demote")
-async def demote_user(
-        username: str,
-        session: SessionDep,
-        current_user: Annotated[User, Depends(get_current_active_user)]
-):
-    # Fetch the user you want to demote
-    user_to_demote = session.get(User, username)
-    if not user_to_demote:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # If current user is admin OR user is demoting themselves
-    if current_user.admin or (current_user.username == username):
-        if not user_to_demote.admin:
-            raise HTTPException(status_code=400, detail="User is already not an admin")
-
-        user_to_demote.admin = False
-        session.commit()
-        session.refresh(user_to_demote)
-        return {"message": f"User '{username}' has been demoted from admin."}
-
-    else:
-        raise HTTPException(
-            status_code=403,
-            detail="You don't have permission to demote this user. Only admins or the user themselves can perform this action."
-        )

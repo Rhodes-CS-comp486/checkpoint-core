@@ -322,7 +322,7 @@ def seed_sample(session):
         User(username="jhall", email="jh@example.com", full_name="Jules Hall",
              hashed_password=get_password_hash("jh123"), user_id=1, admin=False),
         User(username="egantulga", email="eg@example.com", full_name="EK Gantulga",
-             hashed_password=get_password_hash("eg123"), user_id=2, admin=False)
+             hashed_password=get_password_hash("eg123"), user_id=2, admin=True)
     ]
 
     for user in sample_users:
@@ -347,3 +347,31 @@ def seed_sample(session):
         session.add(item)
 
     session.commit()
+
+
+@app.put("/users/{username}/demote")
+async def demote_user(
+        username: str,
+        session: SessionDep,
+        current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    # Fetch the user you want to demote
+    user_to_demote = session.get(User, username)
+    if not user_to_demote:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # If current user is admin OR user is demoting themselves
+    if current_user.admin or (current_user.username == username):
+        if not user_to_demote.admin:
+            raise HTTPException(status_code=400, detail="User is already not an admin")
+
+        user_to_demote.admin = False
+        session.commit()
+        session.refresh(user_to_demote)
+        return {"message": f"User '{username}' has been demoted from admin."}
+
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to demote this user. Only admins or the user themselves can perform this action."
+        )

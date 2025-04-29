@@ -121,6 +121,8 @@ async def check_item(item_id: str,
     elif item == None:
         raise HTTPException(status_code=404, detail="Item not found. Check Item ID and try again")
 
+
+
 async def send_borrow_email(recipient: EmailStr, item_name: str, due_date: datetime):
     message = MessageSchema(
         subject="Item Borrowed Confirmation",
@@ -132,6 +134,25 @@ async def send_borrow_email(recipient: EmailStr, item_name: str, due_date: datet
         📅 Due Date: {due_date.strftime('%Y-%m-%d %H:%M:%S')}
 
         Please make sure to return the item by the due date to avoid issues.
+
+        Thank you,
+        Checkpoint Equipment Services
+        """,
+        subtype="plain"
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)
+async def send_admin_notification(admin_email: EmailStr, borrower_username: str, item_name: str, due_date: datetime):
+    message = MessageSchema(
+        subject="Item Borrowed Notification",
+        recipients=[admin_email],
+        body=f"""Hello Admin,
+
+        User '{borrower_username}' has borrowed the item: {item_name}.
+
+        📅 Due Date: {due_date.strftime('%Y-%m-%d %H:%M:%S')}
+
+        Please monitor the borrowed item accordingly.
 
         Thank you,
         Checkpoint Equipment Services
@@ -265,33 +286,40 @@ async def get_item(
     
 @app.put("/items/{item_id}/borrow")
 async def borrow_item(
-    session: SessionDep, # type: ignore
-    item_id: str,
-    current_user: Annotated[User, Depends(get_current_active_user)]
+        session: SessionDep,  # type: ignore
+        item_id: str,
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
+
     user = current_user
     item = await check_item(item_id, session)
     if item.availability == False:
         raise HTTPException(status_code=403, detail="Forbidden operation, item is already borrowed.")
     item.availability = False
-    id = item_id + str(datetime.now().timestamp()) #make a borrow id based on item borrowed and current time
+    id = item_id + str(datetime.now().timestamp())  # make a borrow id based on item borrowed and current time
 
     date_due = datetime.today() + item.borrow_period_days
 
     new_borrow = Borrow(
-        borrow_id = id, 
-        item_id = item_id,
-        username = user.username,
-        date_borrowed = datetime.today(),
-        date_returned = None,
-        date_due = date_due,
-        active = True,
+        borrow_id=id,
+        item_id=item_id,
+        username=user.username,
+        date_borrowed=datetime.today(),
+        date_returned=None,
+        date_due=date_due,
+        active=True,
     )
     session.add(new_borrow)
     session.commit()
     session.refresh(item)
     await send_borrow_email(current_user.email, item.name, date_due)
-    return{"Borrow confirmed. Borrow ID: %s", id}
+    admin_users = session.exec(select(User).where(User.admin == True)).all()
+    for admin in admin_users:
+        if admin.email != current_user.email:  # Don't send twice if borrower is admin
+            await send_admin_notification(admin.email, current_user.username, item.name, date_due)
+
+    return {"Borrow confirmed. Borrow ID: %s", id}
+
 
 @app.get("/user/borrows")
 async def show_borrows(
@@ -351,12 +379,36 @@ async def report_damage(
         return {"Damage logged."}
 
 
+@app.put("/users/{username}/demote")
+async def demote_user(
+        username: str,
+        session: SessionDep,
+        current_user: Annotated[User, Depends(get_current_active_user)]
+    ):
+    # Fetch the user you want to demote
+    user_to_demote = session.get(User, username)
+    if not user_to_demote:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # If current user is admin OR user is demoting themselves
+    if current_user.admin or (current_user.username == username):
+        if not user_to_demote.admin:
+            raise HTTPException(status_code=400, detail="User is already not an admin")
+
+        user_to_demote.admin = False
+        session.commit()
+        session.refresh(user_to_demote)
+        return {"message": f"User '{username}' has been demoted from admin."}
+
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to demote this user. Only admins or the user themselves can perform this action."
+            )
 
 
 
 ##### mock sample data for testing
-
-
 def seed_sample(session):
     existing_users = session.exec(select(User)).all()
     if existing_users:
@@ -367,8 +419,8 @@ def seed_sample(session):
              hashed_password=get_password_hash("dz123"), user_id=0, admin=True),
         User(username="jhall", email="jh@example.com", full_name="Jules Hall",
              hashed_password=get_password_hash("jh123"), user_id=1, admin=False),
-        User(username="egantulga", email="eg@example.com", full_name="EK Gantulga",
-             hashed_password=get_password_hash("eg123"), user_id=2, admin=False)
+        User(username="egantulga", email="ganen-25@rhodes.edu", full_name="EK Gantulga",
+             hashed_password=get_password_hash("eg123"), user_id=2, admin=True)
     ]
 
     for user in sample_users:
@@ -380,16 +432,18 @@ def seed_sample(session):
 
     sample_items = [
         Item(name="Camera", id="0", description="DSLR camera", model="Canon EOS 90D",
-            availability=True, borrow_period_days=timedelta(days=10), status="available"),
-        Item(name="Tripod",  id="1", description="Adjustable tripod stand", model="Manfrotto Compact",
-            availability=False, borrow_period_days=timedelta(days=14), status="borrowed"),
-        Item(name="Whiteboard",  id="2", description="Magnetic whiteboard", model="Quartet",
-            availability=True, borrow_period_days=timedelta(days=7), status="available"),
-        Item(name="Microscope",  id="3", description="Science lab microscope", model="AmScope B120C",
-            availability=False, borrow_period_days=timedelta(days=30), status="reserved"),
+             availability=True, borrow_period_days=timedelta(days=10), status="available"),
+        Item(name="Tripod", id="1", description="Adjustable tripod stand", model="Manfrotto Compact",
+             availability=False, borrow_period_days=timedelta(days=14), status="borrowed"),
+        Item(name="Whiteboard", id="2", description="Magnetic whiteboard", model="Quartet",
+             availability=True, borrow_period_days=timedelta(days=7), status="available"),
+        Item(name="Microscope", id="3", description="Science lab microscope", model="AmScope B120C",
+             availability=False, borrow_period_days=timedelta(days=30), status="reserved"),
     ]
 
     for item in sample_items:
         session.add(item)
 
     session.commit()
+
+

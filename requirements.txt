@@ -8,3 +8,5 @@ sqlmodel
 psycopg2-binary
 pycryptodome
 fastapi-mail
+apscheduler
+pytz

@@ -13,6 +13,8 @@ and securely log in.
         c.  Jules - 16 hours 
             i.  Base Capacity: 16 hours 
     3.  Planned Work: 
-        a.  filter borrows by active vs history
-        b.  notifcation for admins
-        c.  add field for "pending review"
+        a.  ~~filter borrows by active vs history~~
+        b.  ~~notifcation for admins~~
+        c.  ~~add field for "pending review"~~
+        d.  ~~demote admins~~
+        e. ~~notification for users~~

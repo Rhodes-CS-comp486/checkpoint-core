@@ -193,10 +193,6 @@ async def delete_item(session: SessionDep, #type: ignore
         item = await check_item(item_id, session)
 
         if item:
-            #query = select(Item)
-            #query = query.where(Borrow.item_id == item.id)
-            #results = session.exec(query).all()
-            #session.delete(results)
             session.delete(item)
             session.commit()
             verify = session.get(Item, item_id)
@@ -257,10 +253,13 @@ async def borrow_item(
 @app.get("/user/borrows")
 async def show_borrows(
     session: SessionDep, # type: ignore
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    active: bool | None = Query(default=None)
 ):
-    user = current_user
     query = select(Borrow)
+    if active is not None:
+        query = query.where(Borrow.active == active)
+    user = current_user
     query = query.where(Borrow.username == user.username)
     results = session.exec(query).all()
     return results
@@ -268,10 +267,14 @@ async def show_borrows(
 @app.get("/users/all/borrows")
 async def show_borrow(
     session: SessionDep, # type: ignore
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    active: bool | None = Query(default=None)
 ):
+    query = select(Borrow)
+
     if await verify_admin(current_user):
-        query = select(Borrow)
+        if active is not None:
+            query = query.where(Borrow.active == active)
         results = session.exec(query).all()
         return results
 
@@ -290,26 +293,29 @@ async def return_item(
         raise HTTPException(status_code=404, detail="Item is not found")
     item = session.get(Item, item_id)
     item.availability = True
+    item.pending_review = True
     borrow.active = False
     borrow.date_returned = datetime.today()
     session.commit()
     session.refresh(item)
     return{"Return confirmed."}
 
-@app.put("/items/{item_id}/damage-report")
-async def report_damage(
+@app.put("/items/{item_id}/review")
+async def review(
     session: SessionDep, #type: ignore
     item_id: str,
-    damage: str, 
+    damage: str | None, 
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     user = current_user
     if await verify_admin(user):
         item = await check_item(item_id, session)
-        item.damage = damage
+        if damage: 
+            item.damage = damage
+        item.pending_review = False
         session.commit()
         session.refresh(item)
-        return {"Damage logged."}
+        return {"Review logged."}
 
 
 ##### mock sample data for testing

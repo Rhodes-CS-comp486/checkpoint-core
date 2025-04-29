@@ -27,6 +27,7 @@ class Item(SQLModel, table=True):
     availability: bool = Field(default=True) # available = true, ow = false
     borrow_period_days: timedelta = Field(default=timedelta(days=7))   
     status: str | None = Field(default=None) 
+    pending_review: bool | None = Field(default=None)
     damage: str | None = Field(default=None)
 
 class Borrow(SQLModel, table=True):
@@ -38,7 +39,7 @@ class Borrow(SQLModel, table=True):
     date_borrowed: datetime = Field()
     date_returned: datetime | None = Field(default=None)
     date_due: datetime = Field()
-    active: bool = Field()
+    active: bool = Field(default=True)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

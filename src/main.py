@@ -345,7 +345,8 @@ async def elevate_user(username: str,
             return new_admin
 
 
-@app.put("/items/add/{item_id}") 
+@app.put("/items/add/{item_id}")
+
 async def add_item(session: SessionDep, # type: ignore
                 item: Item,
                 current_user: Annotated[User, Depends(get_current_active_user)]

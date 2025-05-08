@@ -16,7 +16,7 @@ from apscheduler.triggers.cron import CronTrigger #type: ignore
 SECRET_KEY = "secretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-LOCAL_TIMEZONE = timezone(-5) #UTC-5 is America/Chicago timezone; Rhodes College timezone
+LOCAL_TIMEZONE = timezone(timedelta(hours=-5)) #UTC-5 is America/Chicago timezone; Rhodes College timezone
 
 class EmailSchema(BaseModel):
     email: list[EmailStr]

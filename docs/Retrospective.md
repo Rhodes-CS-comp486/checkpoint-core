@@ -1,4 +1,4 @@
-# Checkpoint-Core 2024 Spring Retrospective
+# Checkpoint-Core 2025 Spring Retrospective
 
 ## Skills
 

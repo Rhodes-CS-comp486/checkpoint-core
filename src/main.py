@@ -373,7 +373,8 @@ async def demote_user(
             detail="You don't have permission to demote this user. Only admins or the user themselves can perform this action."
             )
 
-@app.put("/items/add/{item_id}") 
+@app.put("/items/add/{item_id}")
+
 async def add_item(session: SessionDep, # type: ignore
                 item: Item,
                 current_user: Annotated[User, Depends(get_current_active_user)]

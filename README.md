@@ -1,6 +1,50 @@
 # Checkpoint-Core
 
+## Project Description
+
 Checkpoint Core is the database and application logic backend of the Checkpoint equipment check-out web service. It provides secure storage and hosting for essential equipment and user data to allow seamless check-out and check-in for equipment held by the computer science department for use by students and faculty, such as robotics equipment and computers. Via requests from Checkpoint Core's counterpart Checkpoint Web, equipment can be reserved for pick-up and assigned to individuals. Administrator users can retrieve and store equipment status such as current user assignment and degree of wear-and-tear for the purpose of equipment refresh and replacement, to ensure the Rhodes community has access to the best available materials. Checkpoint Core, alongside its counterpart, Checkpoint Web, allows the Computer Science department faculty to more easily manage, maintain, and update its cache of equipment. Checkpoint Core runs as a containerized microservice that was built using Python, the FastAPI framework, and Docker. It is hosted using the uvicorn web server and uses a PostgreSQL database.
+
+### Key Features:
+
+- User authentication system with support for admin and regular users
+- Catalog of available equipment with details and status tracking
+- Borrowing and returning system with automatic updates to availability
+- Role-based permissions and admin-only actions (e.g. equipment management)
+- Automated email notifications and reminders for due dates and overdue items
+- Dockerized setup with isolated containers for server and PostgreSQL database
+- Interactive API documentation available at `/docs` via Swagger UI
+
+### System Diagram:
+
+![image](https://github.com/user-attachments/assets/4ceb7980-4f0d-46b8-9e82-1c36a12ebe7b)
+
+
+## Project Dependencies
+
+The following libraries are specified in `requirements.txt`:
+
+- `fastapi` – API framework
+- `uvicorn` – ASGI server for serving FastAPI
+- `python-multipart` – for handling file uploads
+- `PyJWT` – JSON Web Token-based authentication
+- `passlib` – password hashing
+- `sqlalchemy` and `sqlmodel` – database ORM and model layer
+- `psycopg2-binary` – PostgreSQL driver
+- `pycryptodome` – for cryptographic operations
+- `fastapi-mail` – for sending email notifications
+- `apscheduler` – for scheduled tasks (e.g. reminders)
+- `pytz` – timezone support for scheduling
+
+Runtime Requirements:
+
+- **Python 3.x**
+- **Docker Desktop** – for container orchestration
+- **Docker Compose** – builds and runs containers for the server and PostgreSQL database
+
+Backend Services:
+
+- **PostgreSQL** – used as the relational database to store user and equipment data
+- **Email Service** – configured via `fastapi-mail` to send notifications (e.g., check-in/out alerts)
 
 ## Quickstart guide
 

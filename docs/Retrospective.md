@@ -26,7 +26,7 @@ While we were able to complete most of the requirements we set out to accomplish
 In addition, we were able to implement the following:
     v. Admins are also notified upon check out/check in
     vi. Admins can log damage to items
-Features we weren't able to implement:
+A few features we weren't able to implement include:
     vii. Reserve equipment in advance for a future date
     viii. Store quantity and track how many are available or reserved
     ix. block certain equipment reservations pending admin approval, for especially valuable equipment

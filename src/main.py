@@ -7,17 +7,16 @@ from sqlmodel import Session, select #type: ignore
 import jwt  #type: ignore
 from jwt.exceptions import InvalidTokenError #type: ignore
 from src import database as db
-from src.database import User, Item, Borrow, engine#, seed_sample
+from src.database import User, Item, Borrow, engine 
 from pydantic import BaseModel, EmailStr #type: ignore
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-import pytz
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig #type: ignore
+from apscheduler.schedulers.asyncio import AsyncIOScheduler #type: ignore
+from apscheduler.triggers.cron import CronTrigger #type: ignore
 
 SECRET_KEY = "secretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-LOCAL_TIMEZONE = pytz.timezone("America/Chicago")
+LOCAL_TIMEZONE = timezone(-5) #UTC-5 is America/Chicago timezone; Rhodes College timezone
 
 class EmailSchema(BaseModel):
     email: list[EmailStr]
@@ -114,12 +113,14 @@ async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
 
+#verify that a user is an admin for admin-specific tasks
 async def verify_admin(user: User): #type: ignore
     if user.admin == True:
         return True
     if user.admin == False:
         raise HTTPException(status_code=403, detail="This action requires elevated permissions. Ask an Administrator for help.")
     
+#verify that an item exists 
 async def check_item(item_id: str,
         session: SessionDep): #type: ignore
     item = session.get(Item, item_id)
@@ -207,7 +208,7 @@ async def send_return_notification(admin_email: EmailStr, borrower_username: str
 
 async def reminder_job():
     with Session(engine) as session:
-        now_local = datetime.now(pytz.utc).astimezone(LOCAL_TIMEZONE)
+        now_local = datetime.now(timezone.utc).astimezone(LOCAL_TIMEZONE)
         today = now_local.date()
         tomorrow = today + timedelta(days=1)
 
@@ -282,6 +283,7 @@ async def send_due_soon_email(recipient: EmailStr, item_name: str, due_date: dat
     fm = FastMail(conf)
     await fm.send_message(message)
 
+#used to login
 @app.post("/token")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -343,7 +345,33 @@ async def elevate_user(username: str,
             session.commit()
             session.refresh(new_admin)
             return new_admin
+        
+@app.put("/users/{username}/demote")
+async def demote_user(
+        username: str, 
+        session: SessionDep, #type: ignore
+        current_user: Annotated[User, Depends(get_current_active_user)]
+    ):
+    # Fetch the user you want to demote
+    user_to_demote = session.get(User, username)
+    if not user_to_demote:
+        raise HTTPException(status_code=404, detail="User not found")
 
+    # If current user is admin OR user is demoting themselves
+    if current_user.admin or (current_user.username == username):
+        if not user_to_demote.admin:
+            raise HTTPException(status_code=400, detail="User is already not an admin")
+
+        user_to_demote.admin = False
+        session.commit()
+        session.refresh(user_to_demote)
+        return {"message": f"User '{username}' has been demoted from admin."}
+
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to demote this user. Only admins or the user themselves can perform this action."
+            )
 
 @app.put("/items/add/{item_id}") 
 async def add_item(session: SessionDep, # type: ignore
@@ -365,7 +393,7 @@ async def add_item(session: SessionDep, # type: ignore
                 raise HTTPException(status_code=400, detail="Bad request, unable to update database")
             
 @app.delete("/items/delete/{item_id}")
-async def delete_item(session: SessionDep, #type: ifnore
+async def delete_item(session: SessionDep, #type: ignore
                       item_id: str,
                       current_user: Annotated[User, Depends(get_current_active_user)]
 ):
@@ -512,38 +540,7 @@ async def review(
         session.refresh(item)
         return {"Review logged."}
 
-
-@app.put("/users/{username}/demote")
-async def demote_user(
-        username: str,
-        session: SessionDep,
-        current_user: Annotated[User, Depends(get_current_active_user)]
-    ):
-    # Fetch the user you want to demote
-    user_to_demote = session.get(User, username)
-    if not user_to_demote:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # If current user is admin OR user is demoting themselves
-    if current_user.admin or (current_user.username == username):
-        if not user_to_demote.admin:
-            raise HTTPException(status_code=400, detail="User is already not an admin")
-
-        user_to_demote.admin = False
-        session.commit()
-        session.refresh(user_to_demote)
-        return {"message": f"User '{username}' has been demoted from admin."}
-
-    else:
-        raise HTTPException(
-            status_code=403,
-            detail="You don't have permission to demote this user. Only admins or the user themselves can perform this action."
-            )
-
-
-
 ##### mock sample data for testing
-
 
 def seed_sample(session):
     existing_users = session.exec(select(User)).all()

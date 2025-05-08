@@ -1,4 +1,4 @@
-from Crypto.PublicKey import RSA
+from Crypto.PublicKey import RSA # type: ignore
 
 ServerKey = RSA.generate(2048)
 

@@ -30,3 +30,4 @@ Features we weren't able to implement:
     vii. Reserve equipment in advance for a future date
     viii. Store quantity and track how many are available or reserved
     ix. block certain equipment reservations pending admin approval, for especially valuable equipment
+    x. implement "super admin" to ensure at least 1 admin in the system at any given time

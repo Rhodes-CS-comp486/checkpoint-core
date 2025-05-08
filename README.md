@@ -9,9 +9,9 @@ The only requirement to run Checkpoint Core is Docker Desktop, which can be down
 
 All other requirements are pulled via docker, and are listed in requirements.txt
 
-Follow the installation steps carefully, as additional setup may be required depending on your operating system. If you're running Windows, you will need to have Windows Subsystem for Linux enabled. If you're running Mac, you will need a VM such as Multipass. There are many resources online to get Docker running on your machine.
+Follow the installation steps carefully, as additional setup may be required depending on your operating system. If you're running Windows, you will need to have Windows Subsystem for Linux enabled. If you're running Mac, you may need a VM such as Multipass. There are many resources online to get Docker running on your machine.
 
-To verify that Docker is configured correctly, check that under Settings/Resources/WSL integration, "Enable integration with my default WSL distro" is checked.
+Windows users, to verify that Docker is configured correctly, check that under Settings/Resources/WSL integration, "Enable integration with my default WSL distro" is checked.
 
 Checkpoint Core runs a linux based python image with a nested postgres image to host the database. The database you launch will be seeded with a handful of fake entries in each table. To launch without this seed data, comment out the seed data section at the bottom of src/main.py
 

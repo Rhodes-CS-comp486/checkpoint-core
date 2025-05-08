@@ -33,7 +33,7 @@ The following libraries are specified in `requirements.txt`:
 - `pycryptodome` – for cryptographic operations
 - `fastapi-mail` – for sending email notifications
 - `apscheduler` – for scheduled tasks (e.g. reminders)
-- `pytz` – timezone support for scheduling
+- `datetime` – timezone support for scheduling
 
 Runtime Requirements:
 
